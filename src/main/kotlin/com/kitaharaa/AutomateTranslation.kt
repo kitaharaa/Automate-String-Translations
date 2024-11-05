@@ -38,13 +38,14 @@ fun main() {
 }
 
 fun getLastCommitAttributes(filePath: String): Map<String, String> {
-    val process = executeGitCommand("git", "diff", "HEAD~1", "HEAD", "--", filePath)
+    // Compare the current file state with the last commit
+    val process = executeGitCommand("git", "diff", "HEAD", "--", filePath)
     val output = process.inputStream.bufferedReader().readText()
     process.waitFor()
 
     // Extract the names of added strings (lines prefixed with '+')
     return output.lineSequence()
-        .filter { it.startsWith("+") && !it.startsWith("++") } // TODO handle "++" case
+        .filter { it.startsWith("+") && !it.startsWith("++") } // TODO handle "++" case in future
         .mapNotNull { line ->
             // Extract the "name" attribute from the added lines
             val name = Regex("""name="([^"]+)"""").find(line)?.groups?.get(1)?.value
