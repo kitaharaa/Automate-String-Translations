@@ -38,20 +38,33 @@ fun main() {
 }
 
 fun getLastCommitAttributes(filePath: String): Map<String, String> {
-    // Compare the current file state with the last commit
-    val process = executeGitCommand("git", "diff", "HEAD", "--", filePath)
-    val output = process.inputStream.bufferedReader().readText()
-    process.waitFor()
+    // Get the first commit hash for the file
+    val firstCommit = executeGitCommand("git", "rev-list", "--max-parents=0", "HEAD", "--", filePath)
+        .inputStream.bufferedReader().readText().trim()
+    // Get the last commit hash (latest commit)
+    val lastCommit = executeGitCommand("git", "rev-parse", "HEAD")
+        .inputStream.bufferedReader().readText().trim()
+
+    println("fc = $firstCommit, lc = $lastCommit")
+
+    // Get the diff between the first and last commit
+    val diffProcess = executeGitCommand("git", "diff", firstCommit, lastCommit, "--", filePath)
+    val output = diffProcess.inputStream.bufferedReader().readText()
+    diffProcess.waitFor()
+
+    println("Diff output: $output")
 
     // Extract the names of added strings (lines prefixed with '+')
-    return output.lineSequence()
-        .filter { it.startsWith("+") && !it.startsWith("++") } // TODO handle "++" case in future
+    return output
+        .lineSequence()
+        .filter { it.startsWith("+") && !it.startsWith("++") } // Exclude lines starting with "++"
         .mapNotNull { line ->
             // Extract the "name" attribute from the added lines
             val name = Regex("""name="([^"]+)"""").find(line)?.groups?.get(1)?.value
             val content = Regex(""">(.+)<""").find(line)?.groups?.get(1)?.value
             if (name == null || content == null) return@mapNotNull null
 
+            println("Add: name = $name, content = $content")
             name to content + "_modified"
         }.toMap()
 }
